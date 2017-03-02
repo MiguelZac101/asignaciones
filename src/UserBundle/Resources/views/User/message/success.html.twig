@@ -1,0 +1,6 @@
+{# empty Twig template #}
+{% for flashMessage in app.session.flashbag.get('mensaje') %}
+    <div class="alert alert-success" role="alert">
+        <div class="container">{{ flashMessage }}</div>
+    </div>
+{% endfor %}

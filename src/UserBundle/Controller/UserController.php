@@ -12,18 +12,26 @@ use UserBundle\Form\UserType;
 
 class UserController extends Controller
 {
-    public function indexAction(){
+    public function indexAction(Request $request){
         $em = $this->getDoctrine()->getManager();
+        /*
         $users = $em->getRepository('UserBundle:User')->findAll();
         $res = "Lista de usuarios: <br/>";
         
         foreach($users as $user){
 $res.= "usuario: ".$user->getUsername()." - Email:".$user->getEmail()."<br/>";
         }
-        
+        */
         //return new Re sponse($res);
+        $dql = "SELECT u FROM UserBundle:User u";
+        $users = $em->createQuery($dql);
         
-        return $this->render("UserBundle:User:index.html.twig",array('users'=>$users));        
+        $paginator = $this->get('knp_paginator');
+        $pagination = $paginator->paginate(
+                $users, $request->query->getInt('page',1),3
+        );
+        
+        return $this->render("UserBundle:User:index.html.twig",array('pagination'=>$pagination));        
     }
     
     public function addAction(){
@@ -55,6 +63,9 @@ $res.= "usuario: ".$user->getUsername()." - Email:".$user->getEmail()."<br/>";
             $em = $this->getDoctrine()->getManager();
             $em->persist($user);
             $em->flush();
+            
+            $successMessage = $this->get('translator')->trans('The user has been created.');
+            $this->get('session')->getFlashBag()->add('mensaje',$successMessage);
             
             //return $this->redirectToRoute('user_index');
             return $this->redirect($this->generateUrl('user_index'));
