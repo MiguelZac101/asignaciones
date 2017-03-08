@@ -2,7 +2,7 @@
 {% block body %}
     {{ parent() }}
     {{ include('UserBundle:User:message/success.html.twig') }}
-    
+    {{ include('UserBundle:User:message/danger.html.twig') }}
     
     <div class="container">
         <div class="col-md-12">
@@ -11,7 +11,12 @@
                     {% trans %} Users {% endtrans %}
                 </h2>
             </div>
-            {% trans %} Total records: {% endtrans %} {{ pagination.getTotalItemCount }}
+            {% trans %} Total records: {% endtrans %} 
+            
+            <span id="total">
+            {{ pagination.getTotalItemCount }}
+            </span>
+                
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
                     <tr>
@@ -29,7 +34,7 @@
                         <th>{{'Actions'|trans}}</th>
                     </tr>
                     {% for user in pagination %}
-                    <tr>
+                    <tr data-id="{{ user.id }}">
                         <td>{{user.username}}</td>
                         <td>{{user.firstName}}</td>
                         <td>
@@ -56,7 +61,21 @@
             </div>
         </div>
     </div>
-
-
-
+                    
+    {{ include('UserBundle:User:forms/form.html.twig', { form: delete_form_ajax, message: 'Are you sure ?'|trans, id:'form-delete', with_submit: false}) }}
+    
 {% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('bundles/user/js/delete-user.js') }}"></script>
+{% endblock %}
+
+
+
+
+
+
+
+
+

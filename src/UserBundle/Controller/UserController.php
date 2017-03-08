@@ -5,7 +5,7 @@ namespace UserBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 use Symfony\Component\HttpFoundation\Request;//sirve para recibir peticion
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Response;//enviar datos
 
 use Symfony\Component\Validator\Constraints as Assert;//validaciones
 use Symfony\Component\Form\FormError;
@@ -34,7 +34,14 @@ $res.= "usuario: ".$user->getUsername()." - Email:".$user->getEmail()."<br/>";
                 $users, $request->query->getInt('page',1),3
         );
         
-        return $this->render("UserBundle:User:index.html.twig",array('pagination'=>$pagination));        
+        $deleteFormAjax = $this->createCustomForm(':USER_ID','DELETE','user_delete');
+        
+        $data = array(
+            'pagination'=>$pagination,
+            'delete_form_ajax' => $deleteFormAjax->createView()
+        );
+        
+        return $this->render("UserBundle:User:index.html.twig",$data);        
     }
     
     public function addAction(){
@@ -178,17 +185,10 @@ $res.= "usuario: ".$user->getUsername()." - Email:".$user->getEmail()."<br/>";
             throw $this->createNotFoundException($messageException);
         }
         
-        $deleteForm = $this->createDeleteForm($user);
+        $deleteForm = $this->createCustomForm($user->getId(),'DELETE','user_delete');
         
         return $this->render('UserBundle:User:view.html.twig',array('user'=>$user,'delete_form'=>$deleteForm->createView()));
         //return new Response("usuario: ".$user->getUsername()." - Email:".$user->getEmail());
-    }
-    
-    private function createDeleteForm($user){
-        return $this->createFormBuilder()
-            ->setAction($this->generateUrl('user_delete',array('id'=>$user->getId())))
-            ->setMethod('DELETE')
-            ->getForm();
     }
     
     public function deleteAction(Request $request, $id){
@@ -200,18 +200,52 @@ $res.= "usuario: ".$user->getUsername()." - Email:".$user->getEmail()."<br/>";
             throw $this->createNotFoundException($messageException);
         }
         
-        $form = $this->createDeleteForm($user);
+        //total usuarios
+        $allUsers = $em->getRepository('UserBundle:User')->findAll();
+        $countUsers = count($allUsers);
+        
+        //$form = $this->createDeleteForm($user);
+        $form = $this->createCustomForm($user->getId(),'DELETE','user_delete');
         $form->handleRequest($request);
         
         if($form->isSubmitted() && $form->isValid()){
-            $em->remove($user);
-            $em->flush();
+            if($request->isXMLHttpRequest()){
+                $res = $this->deleteUser($user->getRole(),$em,$user);
+                return new Response(
+                    json_encode(array('removed'=>$res['removed'],'message'=> $res['message'],'countUsers'=>$countUsers)),
+                    200,
+                    array('Content-Type'=>'application/json')
+                );
+            }
             
-            $successMessage = $this->get('translator')->trans('The user has been deleted.');
-            //$this->addFlash('mensaje',$successMessage);
-            $this->get('session')->getFlashBag()->add('mensaje',$successMessage);
+            $res = $this->deleteUser($user->getRole(),$em,$user);
+            
+            $this->get('session')->getFlashBag()->add($res['alert'],$res['message']);
             //return $this->redirectToRoute('user_edit',array('id'=>$user->getId()));            
             return $this->redirect($this->generateUrl('user_index'));
         }
+    }
+    
+    private function deleteUser($role,$em,$user){
+        if($role == 'ROLE_USER'){
+            $em->remove($user);
+            $em->flush();
+            $message = 'el usuario fue elimminado';
+            $removed = 1;
+            $alert = 'mensaje';
+        }elseif($role == 'ROLE_ADMIN'){
+            $message = "el usuario no fue eliminado";
+            $removed = 0;
+            $alert = 'error';
+        }
+        
+        return array('removed'=>$removed,'message'=>$message,'alert'=>$alert);
+    }
+    
+    private function createCustomForm($id,$method,$route){
+        return $this->createFormBuilder()
+                ->setAction($this->generateUrl($route,array('id'=>$id)))
+                ->setMethod($method)
+                ->getForm();
     }
 }
